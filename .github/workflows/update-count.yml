@@ -1,0 +1,51 @@
+# .github/workflows/update-count.yml
+name: Update ICE death count
+
+# ------------------------------------------------------------
+# Run automatically every hour (UTC) and also allow a manual run
+# ------------------------------------------------------------
+on:
+  schedule:
+    - cron: "0 * * * *"   # every hour, at minute 0
+  workflow_dispatch:      # adds a “Run workflow” button in the UI
+
+jobs:
+  scrape-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # --------------------------------------------------------
+      # 1️⃣ Checkout the repository so we can read/write files
+      # --------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # --------------------------------------------------------
+      # 2️⃣ Set up Python (standard library only, no extra packages)
+      # --------------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      # --------------------------------------------------------
+      # 3️⃣ Run the scraper – this creates/updates count.json
+      # --------------------------------------------------------
+      - name: Run scraper
+        run: python scrape.py
+
+      # --------------------------------------------------------
+      # 4️⃣ If count.json changed, commit and push it back to the repo
+      # --------------------------------------------------------
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Check if anything changed (i.e., count.json was updated)
+          if [[ `git status --porcelain` ]]; then
+            git add count.json
+            git commit -m "Update count to $(cat count.json)"
+            git push
+          else
+            echo "Count unchanged – nothing to commit."
+          fi
